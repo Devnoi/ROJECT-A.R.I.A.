@@ -1,1 +1,1 @@
-{"name":"aria-medical-lab","version":"1.1.0","private":true,"type":"module","scripts":{"start":"node server.js","check":"node --check server.js && node --check public/app.js"},"engines":{"node":">=18"}}
+{"name":"aria-gemini-health-greeter","version":"2.0.0","private":true,"type":"module","scripts":{"start":"node server.js","check":"node --check server.js && node --check public/app.js"},"engines":{"node":">=18"}}

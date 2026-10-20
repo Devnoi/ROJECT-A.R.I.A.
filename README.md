@@ -1,29 +1,35 @@
-# A.R.I.A. — OpenAI migration patch
+# A.R.I.A. Gemini Health Greeter
 
-This ZIP contains **only the changed files**. Replace these two paths in the existing GitHub repository:
+An educational medical booth for Arduino UNO R4 WiFi, HC-SR04 and iPad Safari.
 
-- `server.js` (repository root)
-- `public/app.js`
+## Visitor interaction
+- HC-SR04 within **2–10 cm** in two consecutive posts (~1.5 seconds) triggers one greeting event.
+- Retract to **15 cm or farther** for two consecutive posts to re-arm. A 5-second cooldown reduces rapid retriggering.
+- The **iPad** speaks using browser Speech Synthesis, not the Arduino. In Safari press **ENABLE VOICE** once after opening the site to unlock audio. Browser autoplay policies may still restrict unattended speaking; test on the exact iPad.
+- Questions go to Gemini via Render backend. Voice recognition is browser-dependent. Text input always works.
+- "AI LINK" green means a Gemini API call succeeded; red means not verified/unavailable. The health-check API calls the model every ~2 minutes if viewed.
 
-Keep the existing `public/index.html`, `public/style.css`, `package.json`, and Arduino sketch unchanged.
+## Wiring
+HC-SR04 VCC→5V, GND→GND, TRIG→D9, ECHO→D10.
 
-## Render > Environment
+## Render
+- Upload project files to GitHub preserving `/public` and `/arduino` folders.
+- Render Node Web Service: Build Command `npm install`, Start Command `npm start`.
+- Set `GEMINI_API_KEY` from Google AI Studio, `GEMINI_MODEL=gemini-2.5-flash` (or supported model), and `DEVICE_TOKEN` to a new private random token.
+- No OpenAI key is required for this project. Gemini API free eligibility/quotas depend on the account/model.
+- Render free instances may sleep, delaying first interactions.
 
-Set:
-- `OPENAI_API_KEY` = the API key created at https://platform.openai.com/api-keys
-- `OPENAI_MODEL` = `gpt-4o-mini` (or another Chat Completions-supported model you can access)
-- `DEVICE_TOKEN` = your existing Arduino token (keep it unchanged unless rotating both places)
+## Arduino
+- Open `arduino/ARIA_Health_Greeter/ARIA_Health_Greeter.ino` in Arduino IDE.
+- Enter Wi-Fi SSID/password, **hostname only** in `CLOUD_HOST`, and the exact `DEVICE_TOKEN` from Render.
+- Board: Arduino UNO R4 WiFi. Upload, then use Serial Monitor 115200.
+- Expect `HTTP: HTTP/1.1 200 OK`. `401` means mismatched token. Test `https://YOUR-HOST/api/state` for `connected:true`, `greetingId` incrementing after approaching, and `visitorPresent`.
+- Change previously exposed Wi-Fi password and device token. Do not publish credentials in the Arduino sketch.
 
-Remove `GEMINI_API_KEY` and `GEMINI_MODEL` if no longer needed. Never place API keys in source code or on the Arduino.
+## Test
+1. Launch Dashboard in Safari, tap `ENABLE VOICE`. Confirm it says "Voice ready".
+2. Put a flat object 5–10 cm from the sensor for ~2 seconds. The Dashboard should display and speak the greeting once.
+3. Keep the object near; it should not repeat. Withdraw beyond 15 cm for ~2 seconds; repeat approach to re-trigger.
+4. Ask "What does the heart do?". Watch AI light and Render logs. If Gemini is unavailable the answer falls back to educational demo text and light stays red.
 
-Commit changed files to GitHub, deploy Render, and reload Safari. The Dashboard LED turns green after a real successful OpenAI response and red when unavailable. The GET `/api/ai-status` endpoint will make a **billable** test request at most once every 120 seconds per Render instance while being checked. The API endpoint `/api/ask` returns `mode: OPENAI` on success and `DEMO` on fallback.
-
-To troubleshoot, inspect Render Logs for `AI availability check failed` and `OpenAI HTTP 401/403/429`. `401` suggests key error; `429` suggests rate/quota/billing issues; `404` may mean unsupported model.
-
-## Validation
-
-From the project root run `node --check server.js` and `node --check public/app.js`. Open the iPad Dashboard and ask a question. An OpenAI key and an API billing setup may be required; ChatGPT subscriptions do not pay for API usage.
-
-Your UNO R4 WiFi firmware and wiring are unchanged; an `HTTP 200` / `TELEMETRY ACCEPTED` on Serial Monitor already confirms the Arduino->Render path.
-
-Educational simulation only — not for diagnosis or personalized medical decisions.
+**Privacy/safety:** Use fictional/general health questions, no patient-identifiable data; this is not a medical diagnostic system. Gemini responses are generated from model knowledge, not a live web search or verified medical database.
