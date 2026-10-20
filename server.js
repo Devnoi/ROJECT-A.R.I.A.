@@ -119,10 +119,14 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/ai-status') { await verifyAiAvailability(); return json(res, 200, publicAiStatus()); }
     if (req.method === 'GET' && p === '/api/state') return json(res, 200, { ...state, connected: Date.now() - state.lastSeen < 12000 });
     if (req.method === 'POST' && p === '/api/device') {
-      if (!DEVICE_TOKEN || req.headers['x-device-token'] !== DEVICE_TOKEN) return json(res, 401, { error: 'Unauthorized' });
+      if (!DEVICE_TOKEN || req.headers['x-device-token'] !== DEVICE_TOKEN) {
+        console.warn('[DEVICE] POST rejected: HTTP 401 (check DEVICE_TOKEN in Arduino and Render)');
+        return json(res, 401, { error: 'Unauthorized' });
+      }
       const b = await readBody(req);
       const distance = Number(b.distance);
       state.lastSeen = Date.now();
+      console.log(`[DEVICE] POST accepted: distance=${b.distance ?? 'null'} gesture=${String(b.gesture || 'WAITING').slice(0, 20)}`);
       state.connected = true;
       state.distance = b.distance == null ? null : (Number.isFinite(distance) ? Math.round(distance) : null);
       state.gesture = String(b.gesture || 'WAITING').slice(0, 20);
