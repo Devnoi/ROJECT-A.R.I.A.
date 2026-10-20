@@ -35,6 +35,29 @@ function setTopic(topic) {
   state.command = topic;
   state.commandId += 1;
 }
+// Health probe is cached to avoid repeated Gemini calls from multiple iPads.
+let lastProbeAt = 0;
+let probeInFlight = null;
+const AI_PROBE_INTERVAL_MS = 120000;
+async function verifyAiAvailability() {
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    lastAiStatus = { mode: 'DEMO', reason: 'GEMINI_API_KEY is missing' };
+    return;
+  }
+  if (Date.now() - lastProbeAt < AI_PROBE_INTERVAL_MS) return;
+  if (probeInFlight) return probeInFlight;
+  probeInFlight = (async () => {
+    lastProbeAt = Date.now();
+    try {
+      await callGemini('Reply using a single word.', 'Reply with OK.', 32);
+      lastAiStatus = { mode: 'GEMINI', reason: 'Gemini connection verified' };
+    } catch (err) {
+      console.error('Gemini availability check failed:', String(err.message).slice(0, 160));
+      lastAiStatus = { mode: 'DEMO', reason: 'Gemini unavailable; check Render logs' };
+    }
+  })().finally(() => { probeInFlight = null; });
+  return probeInFlight;
+}
 function publicAiStatus() {
   return { mode: lastAiStatus.mode, configured: Boolean(process.env.GEMINI_API_KEY?.trim()), model: process.env.GEMINI_MODEL || 'gemini-2.5-flash', reason: lastAiStatus.reason };
 }
@@ -78,11 +101,13 @@ async function answer(question, topic) {
     const systemPrompt = `You are A.R.I.A., a concise, friendly English-speaking medical and pharmacy education booth assistant. Current topic: ${topic}. Respond in 2-4 short sentences with one interesting quiz question. No diagnosis, dosing instructions, or personalized treatment. For urgent real symptoms, recommend qualified medical care. All scenarios are fictional.`;
     const output = await callGemini(systemPrompt, question);
     lastAiStatus = { mode: 'GEMINI', reason: 'Gemini answered successfully' };
+    lastProbeAt = Date.now();
     return { answer: output, mode: 'GEMINI' };
   } catch (err) {
     const reason = err.name === 'AbortError' ? 'Gemini request timed out' : String(err.message).slice(0, 250);
     console.error('Gemini unavailable:', reason);
     lastAiStatus = { mode: 'DEMO', reason };
+    lastProbeAt = Date.now();
     return { answer: fallback, mode: 'DEMO', reason: 'Gemini request failed; see Render logs' };
   }
 }
@@ -91,7 +116,7 @@ http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     const p = url.pathname;
-    if (req.method === 'GET' && p === '/api/ai-status') return json(res, 200, publicAiStatus());
+    if (req.method === 'GET' && p === '/api/ai-status') { await verifyAiAvailability(); return json(res, 200, publicAiStatus()); }
     if (req.method === 'GET' && p === '/api/state') return json(res, 200, { ...state, connected: Date.now() - state.lastSeen < 12000 });
     if (req.method === 'POST' && p === '/api/device') {
       if (!DEVICE_TOKEN || req.headers['x-device-token'] !== DEVICE_TOKEN) return json(res, 401, { error: 'Unauthorized' });

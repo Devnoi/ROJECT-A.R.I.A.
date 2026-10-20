@@ -19,18 +19,18 @@ async function api(url, data) {
 function showAiStatus(data) {
   const engine = el('engine');
   if (!engine) return;
-  if (data.mode === 'GEMINI' || data.mode === 'AI') {
-    engine.textContent = 'GEMINI AI'; engine.style.color = '#67f5b0';
-  } else if (data.mode === 'READY') {
-    engine.textContent = 'AI READY · TEST'; engine.style.color = '#ffcf70';
-  } else {
-    engine.textContent = 'DEMO MODE'; engine.style.color = '#ffbf7c';
-  }
-  engine.title = data.reason || (data.configured ? 'Gemini API key configured' : 'Gemini API key missing');
+  // Only show green after a real Gemini API request succeeded.
+  const active = data.mode === 'GEMINI' || data.mode === 'AI';
+  engine.classList.toggle('ai-on', active);
+  engine.classList.toggle('ai-off', !active);
+  const label = active ? 'AI connected' : 'AI unavailable';
+  engine.setAttribute('aria-label', label);
+  el('ai-accessible').textContent = label;
+  engine.title = active ? 'AI connected and responding' : 'AI unavailable. Check connection and Render logs.';
 }
 async function refreshAiStatus() {
   try { showAiStatus(await api('/api/ai-status')); }
-  catch { el('engine').textContent = 'AI STATUS OFFLINE'; }
+  catch { showAiStatus({ mode: 'DEMO' }); }
 }
 function render(t) {
   if (!topics.includes(t)) return;
@@ -83,6 +83,7 @@ async function ask(q) {
     if (r.mode === 'DEMO' && r.reason) console.warn(r.reason);
     speak(r.answer);
   } catch {
+    showAiStatus({ mode: 'DEMO' });
     el('answer').textContent = 'Connection unavailable. Try again.';
   } finally { busy = false; el('send').disabled = false; }
 }
