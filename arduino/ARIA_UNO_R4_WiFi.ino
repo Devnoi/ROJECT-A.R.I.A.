@@ -2,10 +2,10 @@
 #include <Arduino_LED_Matrix.h>
 
 // Change these values before uploading.
-const char WIFI_SSID[] = "YOUR_WIFI_NAME";
-const char WIFI_PASS[] = "YOUR_WIFI_PASSWORD";
-const char CLOUD_HOST[] = "your-app.onrender.com"; // hostname only, no https://
-const char DEVICE_TOKEN[] = "change-me-aria-2026"; // same as cloud environment variable
+const char WIFI_SSID[] = ".@ iMake WiFi";
+const char WIFI_PASS[] = "imake1234";
+const char CLOUD_HOST[] = "roject-a-r-i-a.onrender.com"; // hostname only, no https://
+const char DEVICE_TOKEN[] = "02ce576839ed8d0913243f01870f4f42e4651e409dcf0e5f"; // same as cloud environment variable
 const int CLOUD_PORT = 443;
 const int TRIG_PIN = 9;
 const int ECHO_PIN = 10;
