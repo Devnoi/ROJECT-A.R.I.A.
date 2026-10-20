@@ -1,47 +1,29 @@
-# PROJECT A.R.I.A. — Arduino ↔ Render Connection Fix
+# A.R.I.A. — OpenAI migration patch
 
-This package includes the complete web backend, Safari dashboard, and corrected Arduino sketch.
+This ZIP contains **only the changed files**. Replace these two paths in the existing GitHub repository:
 
-## 1. Before upload
+- `server.js` (repository root)
+- `public/app.js`
 
-Open `arduino/ARIA_UNO_R4_WiFi/ARIA_UNO_R4_WiFi.ino` and edit **only**:
+Keep the existing `public/index.html`, `public/style.css`, `package.json`, and Arduino sketch unchanged.
 
-```cpp
-const char WIFI_SSID[] = "YOUR_WIFI_NAME_EXACTLY";
-const char WIFI_PASS[] = "PUT_YOUR_WIFI_PASSWORD_HERE";
-const char CLOUD_HOST[] = "roject-a-r-i-a.onrender.com";
-const char DEVICE_TOKEN[] = "PUT_YOUR_NEW_DEVICE_TOKEN_HERE";
-```
+## Render > Environment
 
-Use exactly your Render service hostname for CLOUD_HOST, without `https://` or trailing `/`.
-Set a **new random** `DEVICE_TOKEN` under Render → Environment (keep secrets off public GitHub).
-Keep `GEMINI_API_KEY` and optional `GEMINI_MODEL` in Render only. The AI LED remains red until a Gemini call succeeds.
+Set:
+- `OPENAI_API_KEY` = the API key created at https://platform.openai.com/api-keys
+- `OPENAI_MODEL` = `gpt-4o-mini` (or another Chat Completions-supported model you can access)
+- `DEVICE_TOKEN` = your existing Arduino token (keep it unchanged unless rotating both places)
 
-## 2. Upload Arduino
+Remove `GEMINI_API_KEY` and `GEMINI_MODEL` if no longer needed. Never place API keys in source code or on the Arduino.
 
-Install Arduino UNO R4 Boards via Arduino IDE Boards Manager. Open the `.ino` in the Arduino sketch folder; Board: UNO R4 WiFi, choose USB Port, Upload (arrow). Serial Monitor 115200.
+Commit changed files to GitHub, deploy Render, and reload Safari. The Dashboard LED turns green after a real successful OpenAI response and red when unavailable. The GET `/api/ai-status` endpoint will make a **billable** test request at most once every 120 seconds per Render instance while being checked. The API endpoint `/api/ask` returns `mode: OPENAI` on success and `DEMO` on fallback.
 
-Sensor HC-SR04: VCC->5V, GND->GND, TRIG->D9, ECHO->D10.
+To troubleshoot, inspect Render Logs for `AI availability check failed` and `OpenAI HTTP 401/403/429`. `401` suggests key error; `429` suggests rate/quota/billing issues; `404` may mean unsupported model.
 
-## 3. Upload Backend files to GitHub
+## Validation
 
-Replace `server.js`, `public/app.js`, `public/index.html`, `public/style.css` and `package.json` in your repository with matching paths. Do not upload your Arduino sketch with secret passwords/tokens. If you want it on GitHub, replace them with placeholders first.
-Render Web Service: `npm install` for build, `npm start` for start. Deploy and wait for Live.
+From the project root run `node --check server.js` and `node --check public/app.js`. Open the iPad Dashboard and ask a question. An OpenAI key and an API billing setup may be required; ChatGPT subscriptions do not pay for API usage.
 
-## 4. Verify exact failure point
+Your UNO R4 WiFi firmware and wiring are unchanged; an `HTTP 200` / `TELEMETRY ACCEPTED` on Serial Monitor already confirms the Arduino->Render path.
 
-Visit `https://YOUR-SERVICE.onrender.com/api/state` while board is powered on. `lastSeen` must become nonzero and `connected: true` while updates arrive.
-
-Serial Monitor meanings:
-- `WiFi CONNECTED`: Wi-Fi is up, not proof the backend received anything.
-- `DNS OK`: hostname resolves; not proof HTTPS worked.
-- `TLS connection FAILED`: DNS/firmware/network/host/certificate issue; no POST delivered.
-- `HTTP 401`: DEVICE_TOKEN mismatch.
-- `HTTP 200` + `TELEMETRY ACCEPTED by Render`: board POST was accepted. Dashboard should show Arduino Online while it keeps posting.
-- `Distance -1 (NO ECHO)`: HC-SR04 did not echo; independently check sensor wiring.
-
-Render Logs will additionally show `[DEVICE] POST accepted` or `[DEVICE] POST rejected: HTTP 401`, without exposing token values.
-
-If Arduino says HTTP 200 repeatedly but `/api/state` stays at zero, double-check that Arduino CLOUD_HOST and the URL opened on the iPad are the SAME Render service; check if more than one service instance is running (this demo holds state in memory).
-
-**Important:** This is an educational demonstration, not a medical device.
+Educational simulation only — not for diagnosis or personalized medical decisions.
