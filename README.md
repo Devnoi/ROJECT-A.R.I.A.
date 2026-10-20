@@ -1,46 +1,27 @@
-# PROJECT A.R.I.A. — Arduino UNO R4 WiFi + iPad + Cloud AI
+# A.R.I.A. — Gemini AI Mode Fix
 
-## What it does
-- HC-SR04 hand proximity selects HEART / BRAIN / LUNGS / PHARMACY.
-- iPad Safari dashboard displays animated medical themed interface, distance and gesture.
-- iPad asks educational questions. Optional OpenAI API; built-in demo response fallback.
-- Arduino's built-in LED matrix changes patterns for the selected topic.
-- No servo, no medical diagnosis, no patient data collection.
+Fix for repository: https://github.com/Devnoi/ROJECT-A.R.I.A.
 
-## Wiring
-HC-SR04 VCC -> UNO R4 5V; GND -> GND; TRIG -> D9; ECHO -> D10. Check module voltage rating and pin labels before connecting. Power UNO from USB-C. No other components needed.
+## Replace on GitHub (preserve paths)
+- `server.js` in repository root
+- `public/app.js` in `public/`
+- `package.json` in repository root (optional, includes syntax check script)
 
-## Cloud deployment (Render example)
-1. Create a GitHub repository and upload `server.js`, `package.json`, `public/` (and optionally `arduino/`).
-2. Render > New > Web Service > connect repo. Runtime Node. Build command: `npm install`; Start command: `npm start`.
-3. Environment variables: `DEVICE_TOKEN` = a long random secret; optionally `OPENAI_API_KEY` = your own API key; optionally `OPENAI_MODEL` = a model available to your account (default `gpt-4o-mini`).
-4. Deploy and open `https://YOUR-APP.onrender.com` in iPad Safari. Grant microphone permission if supported. Some Safari versions do not support web SpeechRecognition: type instead. Text-to-speech availability depends on Safari settings.
-5. Render free services may sleep or cold-start. Open the page 5 minutes before demo; for reliability use an always-on hosting plan.
+**Keep existing `public/index.html`, `public/style.css`, and Arduino sketch unchanged.**
 
-## Arduino setup
-1. Arduino IDE 2.x > Boards Manager > install `Arduino UNO R4 Boards` (includes WiFiS3).
-2. Select Arduino UNO R4 WiFi board and its port. Open `arduino/ARIA_UNO_R4_WiFi.ino`.
-3. Edit `WIFI_SSID`, `WIFI_PASS`, `CLOUD_HOST` (only hostname, without https:// or slash), and `DEVICE_TOKEN` (exactly matching Render).
-4. Upload. Open Serial Monitor 115200 baud. The board needs internet access and correct TLS root certificates/firmware. If TLS fails, update UNO R4 WiFi connectivity firmware/certificates via Arduino IDE firmware updater and check the hostname.
-5. Wave hand 5–25 cm from sensor for ~0.2 s, then remove it; each new entry cycles one topic. Observe iPad and LED matrix.
+## Render Environment Variables
+- `GEMINI_API_KEY`: the key you create in Google AI Studio (secret; enter only in Render)
+- `GEMINI_MODEL`: `gemini-2.5-flash` or another available model
+- `DEVICE_TOKEN`: same token as in Arduino sketch
+- `NODE_ENV`: `production` (optional)
 
-## Test cloud without hardware
-Open iPad dashboard, tap any topic, tap SURPRISE ME, type a question, and optionally enable voice. Hardware status will show ARDUINO OFFLINE. This is expected without a connected board.
+Redeploy after committing changes. Do not expose the Gemini API key in GitHub or Arduino.
 
-## Important constraints
-- Cloud must be reachable from both the Arduino WiFi and the iPad; no local-network requirement.
-- The device endpoint uses `X-Device-Token` authentication; UI controls are intentionally public for supervised booth use. Do not expose the service as a public clinical system.
-- Optional AI calls may incur charges. No secrets in public frontend or Arduino except the device token, which is not an OpenAI key.
-- This is an educational demo only, not a diagnostic tool. The visuals are stylized symbols, not actual holograms or clinically accurate 3D anatomy.
-- WiFiS3 TLS and free-host cold starts can vary; test on the actual network in advance. For guaranteed showtime, keep iPad's demo page open and use manual topic selection if device networking fails.
+## Test
+1. After Render shows **Live**, open `https://YOUR-SERVICE.onrender.com/api/ai-status`.
+2. `READY` = configured, but has not answered successfully yet.
+3. Open Dashboard and ask a question; `GEMINI AI` should appear only after a successful Gemini answer.
+4. Refresh `/api/ai-status`: `GEMINI` = last AI request succeeded, `DEMO` = no key or last request failed.
+5. If `DEMO`, look for `Gemini unavailable:` in Render Logs. Verify the model name, billing, free-tier quotas and key restrictions in AI Studio.
 
-
-## Gemini AI version (updated)
-This version uses Google Gemini instead of OpenAI. On Render > Environment set:
-- `DEVICE_TOKEN`: long random string; must match the Arduino sketch.
-- `GEMINI_API_KEY`: your key from https://aistudio.google.com/api-keys (keep secret; never put it in GitHub or Arduino).
-- `GEMINI_MODEL`: `gemini-2.5-flash` or another model your Gemini API account supports.
-
-Render build: `npm install`; start: `npm start`. No additional npm packages are required.
-Without a Gemini key, or if the API fails, the educational demo response is used. Free-tier availability and limits vary.
-The AI responses are for fictional educational simulations, not medical decisions.
+Note: `READY` confirms an API key is present, not whether it is valid. This service uses simulated educational content only.
