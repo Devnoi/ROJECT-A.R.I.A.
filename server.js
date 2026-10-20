@@ -12,9 +12,42 @@ let lastSwitch=0;
 const json=(res,code,data)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(JSON.stringify(data));};
 async function body(req){let s='';for await(const part of req){s+=part;if(s.length>12000)throw Error('Request too large');}return JSON.parse(s||'{}');}
 function setTopic(topic){if(!topics.includes(topic))return;state.topic=topic;state.command=topic;state.commandId++;}
-async function answer(question,topic){const fallback=`A.R.I.A. educational simulation — ${facts[topic]} Your question: ${question}. Discuss the reasoning with your team. This is not clinical advice.`;
- if(!process.env.OPENAI_API_KEY)return {answer:fallback,mode:'DEMO'};
- try{const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{q{\x27Authorization\x27:`Bearer ${process.env.OPENAI_API_KEY}`,\x27Content-Type\x27}:'application/json'},body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-4o-mini',temperature:0.5,max_tokens:220,messages:[{role:'system',content:`You are A.R.I.A., a concise friendly English-speaking medical and pharmacy education booth assistant. Current topic: ${topic}. Respond in 2-4 short sentences, with one interesting quiz question. No diagnosis, dosing instructions, or personalized treatment. For urgent real symptoms, recommend seeking qualified medical care. All scenarios are fictional.`},{role:'user',content:question}]})});if(!r.ok)throw Error('AI HTTP '+r.status);const j=await r.json();return {answer:j.choices?.[0]?.message?.content||fallback,mode:'AI'};}catch(e){console.error('AI unavailable:',e.message);return {answer:fallback,mode:'DEMO'};}}
+async function callGemini(systemPrompt, userPrompt, maxOutputTokens = 300) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+  if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error('Invalid GEMINI_MODEL');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', signal: controller.signal,
+      headers: {'Content-Type':'application/json', 'x-goog-api-key': apiKey},
+      body: JSON.stringify({
+        systemInstruction: {parts:[{text:systemPrompt}]},
+        contents: [{role:'user',parts:[{text:userPrompt}]}],
+        generationConfig: {temperature:0.4, maxOutputTokens}
+      })
+    });
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 240);
+      throw new Error(`Gemini HTTP ${response.status}: ${detail}`);
+    }
+    const data = await response.json();
+    const output = data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
+    if (!output) throw new Error('Gemini returned no text');
+    return output;
+  } finally { clearTimeout(timer); }
+}
+async function answer(question,topic) {
+  const fallback=`A.R.I.A. educational simulation — ${facts[topic]} Your question: ${question}. Discuss the reasoning with your team. This is not clinical advice.`;
+  if(!process.env.GEMINI_API_KEY) return {answer:fallback,mode:'DEMO'};
+  try {
+    const systemPrompt=`You are A.R.I.A., a concise, friendly English-speaking medical and pharmacy education booth assistant. Current topic: ${topic}. Respond in 2-4 short sentences with one interesting quiz question. No diagnosis, dosing instructions, or personalized treatment. For urgent real symptoms, recommend qualified medical care. All scenarios are fictional.`;
+    const output=await callGemini(systemPrompt,question,350);
+    return {answer:output,mode:'GEMINI'};
+  } catch(e) {console.error('Gemini unavailable:',e.message);return {answer:fallback,mode:'DEMO'};}
+}
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 http.createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');const p=url.pathname;
  if(req.method==='GET'&&p==='/api/state'){return json(res,200,{...state,connected:Date.now()-state.lastSeen<12000});}

@@ -33,3 +33,14 @@ Open iPad dashboard, tap any topic, tap SURPRISE ME, type a question, and option
 - Optional AI calls may incur charges. No secrets in public frontend or Arduino except the device token, which is not an OpenAI key.
 - This is an educational demo only, not a diagnostic tool. The visuals are stylized symbols, not actual holograms or clinically accurate 3D anatomy.
 - WiFiS3 TLS and free-host cold starts can vary; test on the actual network in advance. For guaranteed showtime, keep iPad's demo page open and use manual topic selection if device networking fails.
+
+
+## Gemini AI version (updated)
+This version uses Google Gemini instead of OpenAI. On Render > Environment set:
+- `DEVICE_TOKEN`: long random string; must match the Arduino sketch.
+- `GEMINI_API_KEY`: your key from https://aistudio.google.com/api-keys (keep secret; never put it in GitHub or Arduino).
+- `GEMINI_MODEL`: `gemini-2.5-flash` or another model your Gemini API account supports.
+
+Render build: `npm install`; start: `npm start`. No additional npm packages are required.
+Without a Gemini key, or if the API fails, the educational demo response is used. Free-tier availability and limits vary.
+The AI responses are for fictional educational simulations, not medical decisions.
